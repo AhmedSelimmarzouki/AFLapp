@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Student Board</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #s-canvas { touch-action: none; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 12px; width: 100%; height: 350px; cursor: crosshair; }
+        .status-correct { border-color: #22c55e !important; background: #f0fdf4; }
+        .status-wrong { border-color: #ef4444 !important; background: #fef2f2; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <div id="join-screen" class="max-w-md mx-auto mt-20 bg-white p-8 rounded-2xl shadow-xl text-center">
+        <h1 class="text-2xl font-bold text-blue-600 mb-6 italic">MATH AFL</h1>
+        <input id="room" type="text" placeholder="Room Code" class="w-full p-4 mb-4 border-2 rounded-xl text-center font-bold text-xl uppercase">
+        <input id="name" type="text" placeholder="Your Name" class="w-full p-4 mb-6 border-2 rounded-xl text-center font-bold">
+        <button onclick="join()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold">JOIN</button>
+    </div>
+
+    <div id="board" class="hidden max-w-xl mx-auto">
+        <div id="qZone" class="bg-slate-800 p-4 rounded-2xl shadow-lg mb-4 text-center border-b-4 border-blue-500 min-h-[80px] flex justify-center items-center">
+            <div id="qDisplayContainer" class="text-white"></div>
+        </div>
+        <div id="answer-container" class="bg-white p-4 rounded-3xl shadow-xl border-4 border-transparent transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex bg-gray-100 p-1 rounded-xl">
+                    <button onclick="setTool('type')" id="btn-type" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-bold text-xs">TYPE</button>
+                    <button onclick="setTool('draw')" id="btn-draw" class="px-6 py-2 rounded-lg text-gray-500 font-bold text-xs ml-1">SKETCH</button>
+                </div>
+                <div id="status-icon" class="font-black text-lg"></div>
+            </div>
+            <div id="s-type-zone"><math-field id="mf" style="font-size: 2rem; width: 100%; border:none; outline:none;"></math-field></div>
+            <div id="s-draw-zone" class="hidden"><canvas id="s-canvas"></canvas><button onclick="clearCanvas()" class="w-full mt-2 text-red-500 text-xs font-bold uppercase underline">Clear</button></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const canvas = document.getElementById('s-canvas');
+        const ctx = canvas.getContext('2d');
+        const mf = document.getElementById('mf');
+        let isDrawing = false;
+        
+        // Sound effect for correct answers
+        const winSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+
+        function join() {
+            const roomCode = document.getElementById('room').value.trim();
+            const name = document.getElementById('name').value.trim();
+            if(!roomCode || !name) return;
+            document.getElementById('join-screen').classList.add('hidden');
+            document.getElementById('board').classList.remove('hidden');
+            setTimeout(initCanvas, 100);
+            socket.emit('join-room', { roomCode, name });
+            setTimeout(() => mf.executeCommand(['switchMode', 'text']), 500);
+        }
+
+        function initCanvas() { canvas.width = canvas.clientWidth; canvas.height = 350; ctx.lineCap = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = '#1e293b'; }
+        
+        function setTool(tool) {
+            document.getElementById('s-type-zone').classList.toggle('hidden', tool === 'draw');
+            document.getElementById('s-draw-zone').classList.toggle('hidden', tool === 'type');
+            document.getElementById('btn-type').className = tool === 'type' ? 'px-6 py-2 rounded-lg bg-blue-600 text-white font-bold text-xs' : 'px-6 py-2 rounded-lg text-gray-500 font-bold text-xs ml-1';
+            document.getElementById('btn-draw').className = tool === 'draw' ? 'px-6 py-2 rounded-lg bg-blue-600 text-white font-bold text-xs ml-1' : 'px-6 py-2 rounded-lg text-gray-500 font-bold text-xs ml-1';
+            if(tool === 'draw') initCanvas();
+        }
+
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        canvas.addEventListener('mousedown', (e) => { isDrawing=true; const p=getPointerPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener('mousemove', (e) => { if(!isDrawing) return; const p=getPointerPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+        window.addEventListener('mouseup', () => { if(isDrawing) { isDrawing=false; socket.emit('send-math', {type:'draw', val: canvas.toDataURL()}); } });
+
+        canvas.addEventListener('touchstart', (e) => { isDrawing=true; e.preventDefault(); const p=getPointerPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, {passive:false});
+        canvas.addEventListener('touchmove', (e) => { if(!isDrawing) return; e.preventDefault(); const p=getPointerPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }, {passive:false});
+        canvas.addEventListener('touchend', () => { if(isDrawing) { isDrawing=false; socket.emit('send-math', {type:'draw', val: canvas.toDataURL()}); } });
+
+        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); socket.emit('send-math', { type: 'draw', val: null }); }
+        mf.addEventListener('input', () => socket.emit('send-math', { type: 'text', val: mf.value }));
+        mf.addEventListener('keydown', (e) => { if(e.shiftKey && e.code === 'Space') { e.preventDefault(); mf.executeCommand(['switchMode', mf.mode === 'math' ? 'text' : 'math']); } });
+
+        socket.on('new-question', (q) => {
+            const container = document.getElementById('qDisplayContainer');
+            container.innerHTML = q.type === 'draw' ? `<img src="${q.val}" class="max-h-[100px]">` : `<math-field read-only style="border:none; background:transparent; font-size:1.6rem; color:white;">${q.val}</math-field>`;
+            mf.value = ""; clearCanvas();
+        });
+
+        socket.on('receive-feedback', (status) => {
+            const container = document.getElementById('answer-container');
+            const icon = document.getElementById('status-icon');
+            container.className = "bg-white p-4 rounded-3xl shadow-xl border-4 transition-all " + (status === 'correct' ? 'status-correct' : 'status-wrong');
+            icon.innerText = status === 'correct' ? "✅" : "❌";
+            if(status === 'correct') winSound.play();
+        });
+    </script>
+</body>
+</html>

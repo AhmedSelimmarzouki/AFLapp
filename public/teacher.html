@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teacher Dashboard</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        canvas { 
+            touch-action: none; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 12px; 
+            background: white; 
+            cursor: crosshair; 
+        }
+        math-field[mode="math"] { background: #fffbeb; }
+    </style>
+</head>
+<body class="bg-slate-900 p-6 min-h-screen font-sans">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-white text-2xl font-black italic text-blue-500">MATH AFL</h1>
+            <div class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold shadow-lg">
+                ROOM: <span id="roomDisplay" class="text-yellow-300">....</span>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 p-6 rounded-2xl mb-8 border border-slate-700 shadow-2xl">
+            <div class="flex justify-between mb-2">
+                <div class="flex gap-2">
+                    <button onclick="setTool('type')" id="t-btn-type" class="px-4 py-1 rounded-full bg-blue-600 text-white text-xs font-bold">TYPE</button>
+                    <button onclick="setTool('draw')" id="t-btn-draw" class="px-4 py-1 rounded-full bg-slate-700 text-slate-400 text-xs font-bold">SKETCH</button>
+                </div>
+                <span class="text-slate-500 text-[10px] uppercase font-bold">Shift+Space to toggle Math</span>
+            </div>
+            
+            <div id="t-type-zone">
+                <math-field id="qInput" class="w-full bg-white rounded-xl" style="font-size: 1.5rem; padding: 12px;"></math-field>
+            </div>
+            <div id="t-draw-zone" class="hidden">
+                <canvas id="t-canvas" class="w-full h-[250px]"></canvas>
+                <button onclick="clearTCanvas()" class="text-red-400 text-xs mt-2 font-bold uppercase underline">Clear</button>
+            </div>
+            
+            <button onclick="pushContent()" class="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all">PUSH TO STUDENTS</button>
+        </div>
+
+        <div id="grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+        document.getElementById('roomDisplay').innerText = roomCode;
+        
+        const qInput = document.getElementById('qInput');
+        const canvas = document.getElementById('t-canvas');
+        const ctx = canvas.getContext('2d');
+        let currentTool = 'type';
+        let drawing = false;
+
+        socket.emit('join-room', { roomCode, name: 'Teacher' });
+
+        setTimeout(() => qInput.executeCommand(['switchMode', 'text']), 500);
+        
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.getElementById('t-type-zone').classList.toggle('hidden', tool === 'draw');
+            document.getElementById('t-draw-zone').classList.toggle('hidden', tool === 'type');
+            if(tool === 'draw') { 
+                canvas.width = canvas.offsetWidth; 
+                canvas.height = 250;
+                ctx.lineWidth=3; 
+                ctx.lineCap='round'; 
+            }
+        }
+
+        canvas.onmousedown = (e) => { 
+            drawing=true; 
+            const p = getPos(e);
+            ctx.beginPath(); 
+            ctx.moveTo(p.x, p.y); 
+        };
+        canvas.onmousemove = (e) => { 
+            if(drawing) { 
+                const p = getPos(e);
+                ctx.lineTo(p.x, p.y); 
+                ctx.stroke(); 
+            } 
+        };
+        window.onmouseup = () => drawing=false;
+
+        function pushContent() {
+            const data = currentTool === 'type' ? {type:'text', val: qInput.value} : {type:'draw', val: canvas.toDataURL()};
+            socket.emit('send-question', { roomCode, question: data });
+        }
+
+        function clearTCanvas() { ctx.clearRect(0,0,canvas.width,canvas.height); }
+
+        socket.on('update-display', (data) => {
+            let card = document.getElementById(data.id);
+            if (!card) {
+                card = document.createElement('div');
+                card.id = data.id;
+                card.className = "bg-white p-4 rounded-2xl shadow-xl border-t-8 border-blue-500";
+                document.getElementById('grid').appendChild(card);
+            }
+            const content = data.math.type === 'draw' ? `<img src="${data.math.val}" class="max-h-[150px] mx-auto">` : `<math-field read-only style="border:none; background:transparent; font-size:1.4rem;">${data.math.val}</math-field>`;
+            card.innerHTML = `<div class="flex justify-between items-center mb-2"><span class="font-bold">${data.name}</span><div class="flex gap-2"><button onclick="feedback('${data.id}','correct')" class="text-xl">👍</button><button onclick="feedback('${data.id}','wrong')" class="text-xl">👎</button></div></div><div class="bg-slate-50 p-2 min-h-[100px] flex items-center justify-center border rounded-lg">${content}</div>`;
+        });
+
+        function feedback(id, status) { socket.emit('send-feedback', { studentId: id, status }); }
+    </script>
+</body>
+</html>
