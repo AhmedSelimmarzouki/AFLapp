@@ -12,7 +12,7 @@ io.on('connection', (socket) => {
         const room = typeof data === 'string' ? data : data.roomCode;
         socket.join(room);
         socket.roomCode = room;
-        socket.userName = data.name || 'Anonymous';
+        socket.userName = data.name || 'Student';
     });
 
     socket.on('send-question', (data) => {
@@ -25,6 +25,10 @@ io.on('connection', (socket) => {
             name: socket.userName,
             math: mathData
         });
+    });
+
+    socket.on('send-feedback', ({ studentId, status }) => {
+        io.to(studentId).emit('receive-feedback', status);
     });
 });
 

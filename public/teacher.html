@@ -1,20 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Teacher</title>
+    <title>Teacher Dashboard</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: sans-serif; background: #1a202c; color: white; padding: 20px; }
-        #grid { display: grid; grid-template-cols: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
-        .card { background: white; color: black; padding: 10px; border-radius: 8px; }
-        textarea { width: 100%; height: 80px; margin-bottom: 10px; }
+        body { font-family: sans-serif; background: #0f172a; color: white; padding: 15px; margin: 0; }
+        #grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
+            gap: 15px; 
+            margin-top: 20px; 
+        }
+        .card { 
+            background: white; color: black; padding: 10px; border-radius: 12px; 
+            border-top: 6px solid #2563eb; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .card b { font-size: 1rem; color: #1e3a8a; }
+        textarea { width: 100%; height: 60px; border-radius: 8px; padding: 10px; font-size: 1rem; }
+        .push-btn { width: 100%; padding: 12px; background: #2563eb; color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
+        .fb-btn { border:none; background:none; cursor:pointer; font-size: 1.4rem; padding: 0 5px; }
+        hr { border: 0.5px solid #eee; margin: 8px 0; }
+        .ans-img { width: 100%; border-radius: 5px; max-height: 150px; object-fit: contain; }
     </style>
 </head>
 <body>
-    <h2>Teacher Room: <span id="rDisp"></span></h2>
-    <textarea id="qIn" placeholder="Type question here..."></textarea>
-    <button onclick="push()" style="width:100%; padding:15px; background:blue; color:white; font-bold;">PUSH TO STUDENTS</button>
-    <div id="grid"></div>
+    <div style="max-width: 1200px; margin: auto;">
+        <h2 style="margin: 5px 0;">Room: <span id="rDisp" style="color:#fbbf24;"></span></h2>
+        <textarea id="qIn" placeholder="Type question here..."></textarea>
+        <button class="push-btn" onclick="push()">PUSH NEW QUESTION</button>
+        <div id="grid"></div>
+    </div>
     <script>
         const socket = io();
         const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -22,6 +37,7 @@
         socket.emit('join-room', { roomCode, name: 'Teacher' });
 
         function push() {
+            document.getElementById('grid').innerHTML = "";
             socket.emit('send-question', { roomCode, question: {val: document.getElementById('qIn').value} });
         }
 
@@ -33,9 +49,24 @@
                 card.className = "card";
                 document.getElementById('grid').appendChild(card);
             }
-            const content = data.math.type === 'draw' ? `<img src="${data.math.val}" style="width:100%">` : `<p>${data.math.val}</p>`;
-            card.innerHTML = `<b>${data.name}</b><hr>${content}`;
+            const content = data.math.type === 'draw' 
+                ? `<img class="ans-img" src="${data.math.val}">` 
+                : `<p style="font-size:1.2rem; margin: 5px 0; word-wrap: break-word;">${data.math.val}</p>`;
+            
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <b>${data.name}</b>
+                    <div>
+                        <button class="fb-btn" onclick="feedback('${data.id}','correct')">👍</button>
+                        <button class="fb-btn" onclick="feedback('${data.id}','wrong')">👎</button>
+                    </div>
+                </div>
+                <hr>${content}`;
         });
+
+        function feedback(id, status) {
+            socket.emit('send-feedback', { studentId: id, status });
+        }
     </script>
 </body>
 </html>
