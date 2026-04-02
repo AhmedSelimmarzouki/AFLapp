@@ -6,13 +6,7 @@
     <script src="https://unpkg.com/mathlive"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        canvas { 
-            touch-action: none; 
-            border: 2px solid #e2e8f0; 
-            border-radius: 12px; 
-            background: white; 
-            cursor: crosshair; 
-        }
+        canvas { touch-action: none; border: 2px solid #e2e8f0; border-radius: 12px; background: white; cursor: crosshair; }
         math-field[mode="math"] { background: #fffbeb; }
     </style>
 </head>
@@ -60,7 +54,6 @@
         let drawing = false;
 
         socket.emit('join-room', { roomCode, name: 'Teacher' });
-
         setTimeout(() => qInput.executeCommand(['switchMode', 'text']), 500);
         
         function getPos(e) {
@@ -72,27 +65,11 @@
             currentTool = tool;
             document.getElementById('t-type-zone').classList.toggle('hidden', tool === 'draw');
             document.getElementById('t-draw-zone').classList.toggle('hidden', tool === 'type');
-            if(tool === 'draw') { 
-                canvas.width = canvas.offsetWidth; 
-                canvas.height = 250;
-                ctx.lineWidth=3; 
-                ctx.lineCap='round'; 
-            }
+            if(tool === 'draw') { canvas.width = canvas.offsetWidth; canvas.height = 250; ctx.lineWidth=3; ctx.lineCap='round'; }
         }
 
-        canvas.onmousedown = (e) => { 
-            drawing=true; 
-            const p = getPos(e);
-            ctx.beginPath(); 
-            ctx.moveTo(p.x, p.y); 
-        };
-        canvas.onmousemove = (e) => { 
-            if(drawing) { 
-                const p = getPos(e);
-                ctx.lineTo(p.x, p.y); 
-                ctx.stroke(); 
-            } 
-        };
+        canvas.onmousedown = (e) => { drawing=true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+        canvas.onmousemove = (e) => { if(drawing) { const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); } };
         window.onmouseup = () => drawing=false;
 
         function pushContent() {
@@ -110,7 +87,7 @@
                 card.className = "bg-white p-4 rounded-2xl shadow-xl border-t-8 border-blue-500";
                 document.getElementById('grid').appendChild(card);
             }
-            const content = data.math.type === 'draw' ? `<img src="${data.math.val}" class="max-h-[150px] mx-auto">` : `<math-field read-only style="border:none; background:transparent; font-size:1.4rem;">${data.math.val}</math-field>`;
+            const content = (data.math && data.math.type === 'draw') ? `<img src="${data.math.val}" class="max-h-[150px] mx-auto">` : `<math-field read-only style="border:none; background:transparent; font-size:1.4rem;">${data.math.val || ''}</math-field>`;
             card.innerHTML = `<div class="flex justify-between items-center mb-2"><span class="font-bold">${data.name}</span><div class="flex gap-2"><button onclick="feedback('${data.id}','correct')" class="text-xl">👍</button><button onclick="feedback('${data.id}','wrong')" class="text-xl">👎</button></div></div><div class="bg-slate-50 p-2 min-h-[100px] flex items-center justify-center border rounded-lg">${content}</div>`;
         });
 
