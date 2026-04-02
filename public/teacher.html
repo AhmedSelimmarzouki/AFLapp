@@ -3,23 +3,26 @@
 <head>
     <title>Teacher</title>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: sans-serif; background: #1a202c; color: white; padding: 20px; }
+        #grid { display: grid; grid-template-cols: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+        .card { background: white; color: black; padding: 10px; border-radius: 8px; }
+        textarea { width: 100%; height: 80px; margin-bottom: 10px; }
+    </style>
 </head>
-<body class="p-6 bg-slate-900 text-white">
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-2xl mb-4">Teacher Dashboard - Room: <span id="rDisp"></span></h1>
-        <textarea id="qIn" class="w-full p-4 text-black rounded" placeholder="Type question here..."></textarea>
-        <button onclick="push()" class="bg-blue-600 w-full p-3 mt-2 rounded font-bold">PUSH TO STUDENTS</button>
-        <div id="grid" class="grid grid-cols-3 gap-4 mt-8"></div>
-    </div>
+<body>
+    <h2>Teacher Room: <span id="rDisp"></span></h2>
+    <textarea id="qIn" placeholder="Type question here..."></textarea>
+    <button onclick="push()" style="width:100%; padding:15px; background:blue; color:white; font-bold;">PUSH TO STUDENTS</button>
+    <div id="grid"></div>
     <script>
         const socket = io();
-        const roomCode = Math.floor(1000+Math.random()*9000).toString();
+        const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
         document.getElementById('rDisp').innerText = roomCode;
         socket.emit('join-room', { roomCode, name: 'Teacher' });
 
         function push() {
-            socket.emit('send-question', { roomCode, question: {type:'text', val: document.getElementById('qIn').value} });
+            socket.emit('send-question', { roomCode, question: {val: document.getElementById('qIn').value} });
         }
 
         socket.on('update-display', (data) => {
@@ -27,10 +30,10 @@
             if(!card) {
                 card = document.createElement('div');
                 card.id = data.id;
-                card.className = "bg-white p-2 text-black rounded";
+                card.className = "card";
                 document.getElementById('grid').appendChild(card);
             }
-            const content = data.math.type === 'draw' ? `<img src="${data.math.val}">` : `<p class="text-xl">${data.math.val}</p>`;
+            const content = data.math.type === 'draw' ? `<img src="${data.math.val}" style="width:100%">` : `<p>${data.math.val}</p>`;
             card.innerHTML = `<b>${data.name}</b><hr>${content}`;
         });
     </script>
