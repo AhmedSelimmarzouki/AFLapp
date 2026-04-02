@@ -1,72 +1,399 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Teacher Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathRoom — Teacher Dashboard</title>
     <script src="/socket.io/socket.io.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; background: #0f172a; color: white; padding: 15px; margin: 0; }
-        #grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
-            gap: 15px; 
-            margin-top: 20px; 
+        :root {
+            --bg: #080d18;
+            --surface: #101726;
+            --surface2: #182035;
+            --surface3: #1e2a45;
+            --accent: #4f8ef7;
+            --accent2: #7c5cfc;
+            --green: #22d9a0;
+            --red: #f74f6a;
+            --yellow: #fbbf24;
+            --text: #e8eaf6;
+            --muted: #7b82a0;
+            --border: #1e2a45;
+            --radius: 14px;
         }
-        .card { 
-            background: white; color: black; padding: 10px; border-radius: 12px; 
-            border-top: 6px solid #2563eb; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+        #sidebar {
+            width: 280px; min-height: 100vh; background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; flex-shrink: 0;
         }
-        .card b { font-size: 1rem; color: #1e3a8a; }
-        textarea { width: 100%; height: 60px; border-radius: 8px; padding: 10px; font-size: 1rem; }
-        .push-btn { width: 100%; padding: 12px; background: #2563eb; color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
-        .fb-btn { border:none; background:none; cursor:pointer; font-size: 1.4rem; padding: 0 5px; }
-        hr { border: 0.5px solid #eee; margin: 8px 0; }
-        .ans-img { width: 100%; border-radius: 5px; max-height: 150px; object-fit: contain; }
+        #sidebar-header { padding: 20px 18px 14px; border-bottom: 1px solid var(--border); }
+        #sidebar-header h1 { font-size: 1.1rem; font-weight: 700; }
+        #sidebar-header p { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+        .room-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--surface2); border-radius: 8px;
+            padding: 6px 12px; font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--yellow); border: 1px solid var(--border);
+            margin-top: 10px; user-select: all; cursor: pointer;
+        }
+
+        #chapters-section { flex: 1; overflow-y: auto; padding: 14px 0; }
+        .section-label {
+            font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--muted);
+            padding: 0 18px; margin-bottom: 6px;
+        }
+        .chapter-item {
+            padding: 10px 18px; cursor: pointer; font-size: 0.9rem;
+            border-left: 3px solid transparent; transition: all 0.15s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .chapter-item:hover { background: var(--surface2); }
+        .chapter-item.active { background: var(--surface2); border-left-color: var(--accent); color: var(--accent); }
+        .chapter-count {
+            margin-left: auto; background: var(--surface3); border-radius: 99px;
+            padding: 1px 8px; font-size: 0.7rem; color: var(--muted);
+        }
+        .add-chapter-row {
+            padding: 10px 18px; display: flex; gap: 8px; border-top: 1px solid var(--border);
+        }
+        .add-chapter-row input {
+            flex: 1; padding: 8px 10px; border-radius: 8px;
+            background: var(--surface2); border: 1px solid var(--border);
+            color: var(--text); font-family: inherit; font-size: 0.85rem; outline: none;
+        }
+        .add-chapter-row input:focus { border-color: var(--accent); }
+        .add-chapter-row button {
+            padding: 8px 12px; border-radius: 8px;
+            background: var(--accent); color: white; border: none;
+            font-weight: 700; cursor: pointer; font-size: 0.9rem;
+        }
+
+        #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        #topbar {
+            padding: 14px 20px; border-bottom: 1px solid var(--border);
+            background: var(--surface); display: flex; align-items: center; gap: 12px;
+        }
+        #topbar h2 { font-size: 1rem; font-weight: 700; }
+        .student-count {
+            background: var(--surface2); border-radius: 99px;
+            padding: 3px 10px; font-size: 0.8rem; color: var(--muted);
+        }
+
+        #question-panel {
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .panel-row { display: flex; gap: 10px; align-items: flex-start; }
+        #qIn {
+            flex: 1; padding: 12px 14px; border-radius: 10px;
+            background: var(--bg); border: 1px solid var(--border); color: var(--text);
+            font-family: inherit; font-size: 1rem; outline: none; resize: none; height: 56px;
+            transition: border-color 0.2s;
+        }
+        #qIn:focus { border-color: var(--accent); }
+        .push-btn {
+            padding: 12px 20px; border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: white; font-weight: 700; border: none; cursor: pointer;
+            font-family: inherit; font-size: 0.95rem; white-space: nowrap;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .push-btn:active { transform: scale(0.97); }
+        .save-q-btn {
+            padding: 10px 14px; border-radius: 10px;
+            background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+            font-family: inherit; font-size: 0.85rem; cursor: pointer;
+            font-weight: 600; white-space: nowrap;
+        }
+        .save-q-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        #saved-questions {
+            padding: 0 20px 12px;
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            max-height: 160px; overflow-y: auto;
+        }
+        #saved-questions:empty { display: none; }
+        .saved-q-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 10px; border-radius: 8px; margin-bottom: 4px;
+            background: var(--surface2); font-size: 0.85rem;
+            border: 1px solid transparent; transition: border-color 0.15s;
+        }
+        .saved-q-item:hover { border-color: var(--accent); }
+        .saved-q-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .q-push-btn {
+            font-size: 0.75rem; padding: 3px 8px; border-radius: 6px;
+            background: var(--accent); color: white; border: none; cursor: pointer; font-weight: 700;
+        }
+        .q-del-btn {
+            font-size: 0.75rem; padding: 3px 8px; border-radius: 6px;
+            background: var(--surface3); color: var(--red); border: 1px solid var(--border); cursor: pointer;
+        }
+
+        #grid-wrapper { flex: 1; overflow-y: auto; padding: 16px 20px; }
+        #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+        .empty-state { text-align: center; color: var(--muted); padding: 60px 0; font-size: 0.95rem; }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 10px; }
+
+        .card {
+            background: var(--surface); border-radius: var(--radius);
+            border: 1px solid var(--border); overflow: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .card.correct { border-color: var(--green); box-shadow: 0 0 20px rgba(34,217,160,0.2); }
+        .card.wrong { border-color: var(--red); box-shadow: 0 0 20px rgba(247,79,106,0.2); }
+
+        .card-header {
+            padding: 10px 12px; display: flex; align-items: center;
+            gap: 8px; border-bottom: 1px solid var(--border);
+            background: var(--surface2);
+        }
+        .avatar {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+        }
+        .card-name { font-weight: 600; font-size: 0.9rem; flex: 1; }
+        .fb-btn {
+            border: none; background: none; cursor: pointer;
+            font-size: 1.25rem; padding: 2px 4px; border-radius: 6px;
+            transition: background 0.15s;
+        }
+        .fb-btn:hover { background: var(--surface3); }
+
+        .card-body { padding: 12px; min-height: 60px; }
+        .math-text {
+            font-size: 1rem; word-break: break-word; line-height: 1.4;
+            font-family: 'JetBrains Mono', monospace; color: var(--text);
+        }
+        .empty-answer { color: var(--muted); font-size: 0.85rem; font-style: italic; }
+        .ans-img { width: 100%; border-radius: 8px; max-height: 140px; object-fit: contain; }
+
+        .status-chip {
+            margin: 0 12px 10px; padding: 4px 10px; border-radius: 99px;
+            font-size: 0.75rem; font-weight: 700; display: inline-block;
+        }
+        .status-chip.correct { background: rgba(34,217,160,0.15); color: var(--green); }
+        .status-chip.wrong { background: rgba(247,79,106,0.15); color: var(--red); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
     </style>
 </head>
 <body>
-    <div style="max-width: 1200px; margin: auto;">
-        <h2 style="margin: 5px 0;">Room: <span id="rDisp" style="color:#fbbf24;"></span></h2>
-        <textarea id="qIn" placeholder="Type question here..."></textarea>
-        <button class="push-btn" onclick="push()">PUSH NEW QUESTION</button>
-        <div id="grid"></div>
+
+<div id="sidebar">
+    <div id="sidebar-header">
+        <h1>📐 MathRoom</h1>
+        <p>Teacher Dashboard</p>
+        <div class="room-badge" onclick="copyRoom()" title="Click to copy">
+            🔑 <span id="rDisp">----</span>
+        </div>
     </div>
-    <script>
-        const socket = io();
-        const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
-        document.getElementById('rDisp').innerText = roomCode;
-        socket.emit('join-room', { roomCode, name: 'Teacher' });
+    <div id="chapters-section">
+        <div class="section-label" style="margin-top:14px;">Chapters</div>
+        <div id="chapters-list"></div>
+    </div>
+    <div class="add-chapter-row">
+        <input type="text" id="newChapterInput" placeholder="New chapter name..." onkeydown="if(event.key==='Enter') addChapter()">
+        <button onclick="addChapter()">+</button>
+    </div>
+</div>
 
-        function push() {
-            document.getElementById('grid').innerHTML = "";
-            socket.emit('send-question', { roomCode, question: {val: document.getElementById('qIn').value} });
-        }
+<div id="main">
+    <div id="topbar">
+        <h2 id="active-chapter-label">All Students</h2>
+        <span class="student-count" id="student-count">0 students</span>
+    </div>
+    <div id="question-panel">
+        <div class="panel-row">
+            <textarea id="qIn" placeholder="Type a question to push to all students..."></textarea>
+            <button class="save-q-btn" onclick="saveQuestion()">💾 Save</button>
+            <button class="push-btn" onclick="push()">▶ Push</button>
+        </div>
+    </div>
+    <div id="saved-questions"></div>
+    <div id="grid-wrapper">
+        <div id="grid">
+            <div class="empty-state">
+                <div class="icon">👩‍🎓</div>
+                <div>Waiting for students to join...</div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        socket.on('update-display', (data) => {
-            let card = document.getElementById(data.id);
-            if(!card) {
-                card = document.createElement('div');
-                card.id = data.id;
-                card.className = "card";
-                document.getElementById('grid').appendChild(card);
-            }
-            const content = data.math.type === 'draw' 
-                ? `<img class="ans-img" src="${data.math.val}">` 
-                : `<p style="font-size:1.2rem; margin: 5px 0; word-wrap: break-word;">${data.math.val}</p>`;
-            
-            card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <b>${data.name}</b>
-                    <div>
-                        <button class="fb-btn" onclick="feedback('${data.id}','correct')">👍</button>
-                        <button class="fb-btn" onclick="feedback('${data.id}','wrong')">👎</button>
-                    </div>
-                </div>
-                <hr>${content}`;
+<script>
+    const socket = io();
+    const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+    document.getElementById('rDisp').innerText = roomCode;
+    socket.emit('join-room', { roomCode, name: 'Teacher' });
+
+    let activeChapter = null;
+    let questionBank = {};
+    let studentCount = 0;
+
+    function copyRoom() {
+        navigator.clipboard.writeText(roomCode);
+        const badge = document.querySelector('.room-badge');
+        badge.textContent = '✅ Copied!';
+        setTimeout(() => { badge.innerHTML = '🔑 <span id="rDisp">' + roomCode + '</span>'; }, 1500);
+    }
+
+    function renderChapters() {
+        const list = document.getElementById('chapters-list');
+        list.innerHTML = '';
+        Object.keys(questionBank).forEach(ch => {
+            const div = document.createElement('div');
+            div.className = 'chapter-item' + (activeChapter === ch ? ' active' : '');
+            div.innerHTML = '<span>📁 ' + ch + '</span><span class="chapter-count">' + questionBank[ch].length + '</span>';
+            div.onclick = () => selectChapter(ch);
+            list.appendChild(div);
         });
+    }
 
-        function feedback(id, status) {
-            socket.emit('send-feedback', { studentId: id, status });
+    function addChapter() {
+        const input = document.getElementById('newChapterInput');
+        const name = input.value.trim();
+        if (!name) return;
+        if (!questionBank[name]) questionBank[name] = [];
+        input.value = '';
+        renderChapters();
+        selectChapter(name);
+    }
+
+    function selectChapter(ch) {
+        activeChapter = ch;
+        document.getElementById('active-chapter-label').textContent = ch;
+        renderChapters();
+        renderSavedQuestions();
+    }
+
+    function saveQuestion() {
+        const text = document.getElementById('qIn').value.trim();
+        if (!text) return alert('Type a question first!');
+        if (!activeChapter) return alert('Select or create a chapter first!');
+        socket.emit('save-question', { chapter: activeChapter, text });
+    }
+
+    function renderSavedQuestions() {
+        const container = document.getElementById('saved-questions');
+        container.innerHTML = '';
+        if (!activeChapter || !questionBank[activeChapter]) return;
+        questionBank[activeChapter].forEach(q => {
+            const div = document.createElement('div');
+            div.className = 'saved-q-item';
+            div.innerHTML = '<span title="' + q.text + '">' + q.text + '</span>' +
+                '<button class="q-push-btn" onclick="pushSaved(\'' + q.id + '\')">▶</button>' +
+                '<button class="q-del-btn" onclick="deleteQ(\'' + q.id + '\')">✕</button>';
+            container.appendChild(div);
+        });
+    }
+
+    function pushSaved(id) {
+        if (!activeChapter) return;
+        const q = questionBank[activeChapter].find(x => x.id === id);
+        if (!q) return;
+        document.getElementById('qIn').value = q.text;
+        push();
+    }
+
+    function deleteQ(id) {
+        if (!activeChapter) return;
+        socket.emit('delete-question', { chapter: activeChapter, id });
+    }
+
+    socket.on('question-bank-update', (bank) => {
+        questionBank = bank;
+        renderChapters();
+        renderSavedQuestions();
+    });
+
+    socket.emit('get-question-bank');
+
+    function push() {
+        const text = document.getElementById('qIn').value.trim();
+        if (!text) return;
+        document.getElementById('grid').innerHTML = '';
+        socket.emit('send-question', { roomCode, question: { val: text } });
+    }
+
+    socket.on('student-joined', (data) => {
+        studentCount++;
+        updateCount();
+        ensureCard(data.id, data.name);
+    });
+
+    socket.on('student-left', (data) => {
+        studentCount = Math.max(0, studentCount - 1);
+        updateCount();
+    });
+
+    function updateCount() {
+        document.getElementById('student-count').textContent = studentCount + ' student' + (studentCount !== 1 ? 's' : '');
+    }
+
+    socket.on('update-display', (data) => {
+        const existing = document.querySelector('.empty-state');
+        if (existing) existing.remove();
+        const card = ensureCard(data.id, data.name);
+        const body = card.querySelector('.card-body');
+        if (data.math.type === 'draw') {
+            body.innerHTML = '<img class="ans-img" src="' + data.math.val + '">';
+        } else {
+            const val = data.math.val;
+            body.innerHTML = val
+                ? '<div class="math-text">' + val + '</div>'
+                : '<div class="empty-answer">typing...</div>';
         }
-    </script>
+        const chip = card.querySelector('.status-chip');
+        if (chip) chip.remove();
+    });
+
+    function ensureCard(id, name) {
+        let card = document.getElementById('card-' + id);
+        if (!card) {
+            card = document.createElement('div');
+            card.id = 'card-' + id;
+            card.className = 'card';
+            const initial = name ? name[0].toUpperCase() : '?';
+            card.innerHTML =
+                '<div class="card-header">' +
+                    '<div class="avatar">' + initial + '</div>' +
+                    '<div class="card-name">' + name + '</div>' +
+                    '<button class="fb-btn" title="Correct" onclick="feedback(\'' + id + '\',\'correct\')">👍</button>' +
+                    '<button class="fb-btn" title="Wrong" onclick="feedback(\'' + id + '\',\'wrong\')">👎</button>' +
+                '</div>' +
+                '<div class="card-body"><div class="empty-answer">Waiting for answer...</div></div>';
+            document.getElementById('grid').appendChild(card);
+            studentCount++;
+            updateCount();
+        }
+        return card;
+    }
+
+    function feedback(id, status) {
+        socket.emit('send-feedback', { studentId: id, status });
+        const card = document.getElementById('card-' + id);
+        if (!card) return;
+        const oldChip = card.querySelector('.status-chip');
+        if (oldChip) oldChip.remove();
+        card.className = 'card ' + status;
+        const chip = document.createElement('div');
+        chip.className = 'status-chip ' + status;
+        chip.textContent = status === 'correct' ? '✅ Correct' : '❌ Wrong';
+        card.appendChild(chip);
+        setTimeout(() => { card.className = 'card'; chip.remove(); }, 4000);
+    }
+</script>
 </body>
 </html>
