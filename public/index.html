@@ -1,47 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Math AFL - Student</title>
+    <title>Student</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f4f4f9; margin: 0; padding: 10px; }
-        #question-box { 
-            background: white; padding: 15px; border-radius: 8px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin: 10px auto; 
-            max-width: 90%; border-left: 5px solid #007bff;
-            word-wrap: break-word; white-space: pre-wrap; text-align: left;
-        }
-        #question-display { font-size: 1.2rem; font-weight: bold; color: #333; }
-        canvas { border: 2px solid #333; background: white; width: 100%; max-width: 500px; height: 350px; touch-action: none; cursor: crosshair; }
-        .controls { margin-top: 10px; }
-        button { padding: 12px 24px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; margin: 5px; }
-        .join-btn { background: #007bff; color: white; width: 100%; }
-        .submit-btn { background: #28a745; color: white; }
-        .clear-btn { background: #dc3545; color: white; }
-        input { padding: 12px; width: 80%; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        body { font-family: sans-serif; text-align: center; background: #f0f2f5; padding: 10px; }
+        #question-box { background: white; padding: 15px; border-radius: 8px; margin: 10px auto; max-width: 500px; border-left: 5px solid #007bff; text-align: left; white-space: pre-wrap; word-wrap: break-word; font-weight: bold; }
+        canvas { border: 2px solid #333; background: white; width: 100%; max-width: 500px; height: 350px; touch-action: none; }
+        input { padding: 12px; margin: 5px; width: 80%; border-radius: 5px; border: 1px solid #ccc; }
+        button { padding: 12px 20px; margin: 5px; border-radius: 5px; border: none; cursor: pointer; color: white; }
+        .join-btn { background: #007bff; }
+        .submit-btn { background: #28a745; }
+        .clear-btn { background: #dc3545; }
     </style>
 </head>
 <body>
-    <div id="login-screen">
-        <h2>Student Login</h2>
-        <input type="text" id="name" placeholder="Enter Your Name">
-        <input type="text" id="room" placeholder="Enter Room Code">
-        <button class="join-btn" onclick="join()">Join Class</button>
+    <div id="login">
+        <h2>Enter Math Room</h2>
+        <input type="text" id="name" placeholder="Name">
+        <input type="text" id="room" placeholder="Room Code">
+        <button class="join-btn" onclick="join()">Join</button>
     </div>
-
-    <div id="app" style="display:none;">
-        <div id="question-box">
-            <div id="question-display">Waiting for teacher...</div>
-        </div>
-        <canvas id="canvas" width="500" height="350"></canvas>
-        <div class="controls">
-            <button class="clear-btn" onclick="clearCanvas()">Clear</button>
-            <button class="submit-btn" onclick="send()">Submit Answer</button>
-        </div>
+    <div id="app" style="display:none">
+        <div id="question-box">Waiting for teacher...</div>
+        <canvas id="canvas" width="500" height="350"></canvas><br>
+        <button class="clear-btn" onclick="clearC()">Clear</button>
+        <button class="submit-btn" onclick="send()">Submit</button>
     </div>
-
     <script>
         const socket = io();
         const canvas = document.getElementById('canvas');
@@ -49,64 +35,26 @@
         let drawing = false;
 
         function join() {
-            const name = document.getElementById('name').value;
-            const roomCode = document.getElementById('room').value;
-            if(name && roomCode) {
-                // IMPORTANT: Matches the join-room event in server.js
-                socket.emit('join-room', { name, roomCode });
-                document.getElementById('login-screen').style.display = 'none';
+            const room = document.getElementById('room').value;
+            if(room) {
+                socket.emit('join-room', room);
+                document.getElementById('login').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
-            } else {
-                alert("Please enter both name and room code");
             }
         }
 
-        // Drawing Logic
-        function getPos(e) {
+        canvas.onmousedown = () => drawing = true;
+        window.onmouseup = () => { drawing = false; ctx.beginPath(); };
+        canvas.onmousemove = (e) => {
+            if(!drawing) return;
             const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return {
-                x: (clientX - rect.left) * (canvas.width / rect.width),
-                y: (clientY - rect.top) * (canvas.height / rect.height)
-            };
-        }
-
-        const startDraw = (e) => { drawing = true; draw(e); };
-        const stopDraw = () => { drawing = false; ctx.beginPath(); };
-        const draw = (e) => {
-            if (!drawing) return;
-            const pos = getPos(e);
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '#000';
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            if (e.type !== 'mousemove') e.preventDefault();
+            ctx.lineTo((e.clientX-rect.left)*(500/rect.width), (e.clientY-rect.top)*(350/rect.height));
+            ctx.stroke(); ctx.beginPath(); ctx.moveTo((e.clientX-rect.left)*(500/rect.width), (e.clientY-rect.top)*(350/rect.height));
         };
 
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', draw);
-        window.addEventListener('mouseup', stopDraw);
-        canvas.addEventListener('touchstart', startDraw, {passive: false});
-        canvas.addEventListener('touchmove', draw, {passive: false});
-        canvas.addEventListener('touchend', stopDraw);
-
-        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
-
-        function send() {
-            const roomCode = document.getElementById('room').value;
-            socket.emit('drawing', { roomCode, drawing: canvas.toDataURL() });
-            alert("Answer Sent!");
-        }
-
-        // Listen for questions from teacher
-        socket.on('new-question', (q) => {
-            document.getElementById('question-display').innerText = q;
-            clearCanvas();
-        });
+        function clearC() { ctx.clearRect(0,0,500,350); }
+        function send() { socket.emit('drawing', { room: document.getElementById('room').value, drawing: canvas.toDataURL() }); alert("Sent!"); }
+        socket.on('new-question', (q) => { document.getElementById('question-box').innerText = q; clearC(); });
     </script>
 </body>
 </html>
