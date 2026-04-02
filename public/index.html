@@ -6,127 +6,86 @@
     <script src="/socket.io/socket.io.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <style>
         :root {
-            --bg: #0b0f1a;
-            --surface: #141929;
-            --surface2: #1e2740;
-            --accent: #4f8ef7;
-            --accent2: #7c5cfc;
-            --green: #22d9a0;
-            --red: #f74f6a;
-            --text: #e8eaf6;
-            --muted: #7b82a0;
-            --border: #252e47;
-            --radius: 14px;
+            --bg: #0b0f1a; --surface: #141929; --surface2: #1e2740;
+            --accent: #4f8ef7; --accent2: #7c5cfc;
+            --green: #22d9a0; --red: #f74f6a;
+            --text: #e8eaf6; --muted: #7b82a0; --border: #252e47; --radius: 14px;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; }
 
-        #login {
-            max-width: 400px; margin: 80px auto;
-            background: var(--surface); border-radius: 24px;
-            padding: 36px; border: 1px solid var(--border);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-        }
+        #login { max-width: 400px; margin: 80px auto; background: var(--surface); border-radius: 24px; padding: 36px; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
         #login h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 6px; }
         #login p { color: var(--muted); margin-bottom: 24px; font-size: 0.9rem; }
         .field { margin-bottom: 14px; }
         .field label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.05em; text-transform: uppercase; }
-        .field input {
-            width: 100%; padding: 12px 16px; border-radius: 10px;
-            background: var(--bg); border: 1px solid var(--border); color: var(--text);
-            font-family: inherit; font-size: 1rem; outline: none;
-            transition: border-color 0.2s;
-        }
+        .field input { width: 100%; padding: 12px 16px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.2s; }
         .field input:focus { border-color: var(--accent); }
-        .join-btn {
-            width: 100%; padding: 14px; margin-top: 8px;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            color: white; font-family: inherit; font-weight: 700; font-size: 1rem;
-            border: none; border-radius: 10px; cursor: pointer;
-            transition: opacity 0.2s, transform 0.1s;
-        }
-        .join-btn:active { transform: scale(0.98); opacity: 0.9; }
+        .join-btn { width: 100%; padding: 14px; margin-top: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; font-family: inherit; font-weight: 700; font-size: 1rem; border: none; border-radius: 10px; cursor: pointer; }
+        .join-btn:active { opacity: 0.9; transform: scale(0.98); }
 
-        #app { max-width: 560px; margin: 0 auto; }
+        #app { max-width: 580px; margin: 0 auto; }
         .hidden { display: none !important; }
+
+        #status-bar { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); margin-bottom: 10px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
 
         #qDisplay {
             background: linear-gradient(135deg, #1a2a6c, #2563eb);
             border-radius: var(--radius); padding: 16px 20px;
-            font-size: 1.05rem; font-weight: 500; line-height: 1.5;
-            white-space: pre-wrap; word-break: break-word;
+            font-size: 1.05rem; line-height: 1.7; word-break: break-word;
             margin-bottom: 16px; min-height: 64px;
             box-shadow: 0 4px 20px rgba(37,99,235,0.3);
         }
-        #qDisplay.waiting { color: var(--muted); font-style: italic; font-weight: 400; }
+        #qDisplay.waiting { color: var(--muted); font-style: italic; }
+        #qDisplay .katex, #qDisplay .katex-display { color: #fff; }
 
         .tool-switcher { display: flex; gap: 8px; margin-bottom: 14px; }
-        .tool-btn {
-            flex: 1; padding: 10px; border-radius: 10px;
-            border: 1.5px solid var(--border);
-            background: var(--surface); color: var(--muted);
-            font-family: inherit; font-size: 0.9rem; font-weight: 600;
-            cursor: pointer; transition: all 0.2s;
-        }
+        .tool-btn { flex: 1; padding: 10px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); font-family: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .tool-btn.active { background: var(--surface2); color: var(--text); border-color: var(--accent); }
 
         #type-zone { background: var(--surface); border-radius: var(--radius); padding: 14px; border: 1px solid var(--border); }
 
         math-field {
             width: 100%;
-            font-size: 1.4rem;
-            background: white;
-            color: #111;
+            font-size: 1.5rem;
             border-radius: 10px;
-            padding: 10px;
+            border: 2px solid #c8d0e8;
+            padding: 10px 14px;
             display: block;
-            --keyboard-zindex: 9999;
+            background: #fff;
+            color: #111;
         }
+        math-field:focus-within { border-color: var(--accent); outline: none; }
 
-        .kb-toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-        .kb-cat {
-            font-size: 0.75rem; font-weight: 700; color: var(--muted);
-            width: 100%; margin-top: 8px; letter-spacing: 0.07em; text-transform: uppercase;
-        }
-        .kb-btn {
-            padding: 7px 10px; border-radius: 8px;
-            background: var(--surface2); color: var(--text);
-            border: 1px solid var(--border); font-size: 0.85rem;
-            cursor: pointer; font-family: 'JetBrains Mono', monospace;
-            transition: background 0.15s, transform 0.1s;
-            user-select: none;
-        }
+        .kb-toolbar { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+        .kb-cat { font-size: 0.7rem; font-weight: 700; color: var(--muted); width: 100%; margin-top: 6px; letter-spacing: 0.07em; text-transform: uppercase; }
+        .kb-btn { padding: 6px 9px; border-radius: 7px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); font-size: 0.88rem; cursor: pointer; font-family: 'JetBrains Mono', monospace; user-select: none; transition: background 0.12s, transform 0.08s; }
         .kb-btn:hover { background: #2e3b5e; }
-        .kb-btn:active { transform: scale(0.93); }
+        .kb-btn:active { transform: scale(0.9); }
 
         #draw-zone { background: var(--surface); border-radius: var(--radius); padding: 14px; border: 1px solid var(--border); }
-        canvas { border-radius: 10px; background: white; width: 100%; max-width: 100%; height: 260px; display: block; touch-action: none; }
-        .clear-btn {
-            margin-top: 10px; padding: 9px 20px; border-radius: 8px;
-            background: var(--surface2); border: 1px solid var(--border);
-            color: var(--red); font-family: inherit; font-weight: 600;
-            font-size: 0.9rem; cursor: pointer;
-        }
+        canvas { border-radius: 10px; background: white; width: 100%; height: 260px; display: block; touch-action: none; }
+        .clear-btn { margin-top: 10px; padding: 9px 20px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); color: var(--red); font-family: inherit; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
 
         #feedback-overlay {
             position: fixed; inset: 0; z-index: 1000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 6rem; pointer-events: none;
-            opacity: 0; transition: opacity 0.3s;
+            font-size: 6rem; pointer-events: none; opacity: 0; transition: opacity 0.3s;
         }
-        #feedback-overlay.show { opacity: 1; pointer-events: all; }
+        #feedback-overlay.show { opacity: 1; }
         #feedback-overlay.correct { background: rgba(34,217,160,0.15); }
-        #feedback-overlay.wrong { background: rgba(247,79,106,0.15); }
-        #feedback-icon { filter: drop-shadow(0 0 30px currentColor); animation: pop 0.4s cubic-bezier(.36,.07,.19,.97); }
+        #feedback-overlay.wrong   { background: rgba(247,79,106,0.15); }
+        #feedback-icon { animation: pop 0.4s cubic-bezier(.36,.07,.19,.97) both; }
         #feedback-text { font-size: 1.4rem; font-weight: 700; margin-top: 12px; }
         #feedback-overlay.correct #feedback-text { color: var(--green); }
-        #feedback-overlay.wrong #feedback-text { color: var(--red); }
+        #feedback-overlay.wrong   #feedback-text { color: var(--red); }
         @keyframes pop { 0%{transform:scale(0.3)} 70%{transform:scale(1.15)} 100%{transform:scale(1)} }
-
-        #status-bar { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); margin-bottom: 10px; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
     </style>
 </head>
 <body>
@@ -134,38 +93,27 @@
 <div id="login">
     <h2>Join MathRoom</h2>
     <p>Enter your name and the room code from your teacher.</p>
-    <div class="field">
-        <label>Your Name</label>
-        <input type="text" id="name" placeholder="e.g. Ahmed">
-    </div>
-    <div class="field">
-        <label>Room Code</label>
-        <input type="text" id="room" placeholder="e.g. 4821">
-    </div>
+    <div class="field"><label>Your Name</label><input type="text" id="name" placeholder="e.g. Ahmed"></div>
+    <div class="field"><label>Room Code</label><input type="text" id="room" placeholder="e.g. 4821"></div>
     <button class="join-btn" onclick="join()">Join Room →</button>
 </div>
 
 <div id="app" class="hidden">
-    <div id="status-bar">
-        <div class="dot"></div>
-        <span id="status-text">Connected</span>
-    </div>
-
+    <div id="status-bar"><div class="dot"></div><span id="status-text">Connected</span></div>
     <div id="qDisplay" class="waiting">⏳ Waiting for your teacher to push a question...</div>
-
     <div class="tool-switcher">
         <button class="tool-btn active" id="btn-type" onclick="setTool('type')">⌨️ Type Math</button>
         <button class="tool-btn" id="btn-draw" onclick="setTool('draw')">✏️ Draw</button>
     </div>
 
     <div id="type-zone">
-        <math-field id="mf" virtual-keyboard-mode="manual"></math-field>
+        <math-field id="mf"></math-field>
         <div class="kb-toolbar">
             <span class="kb-cat">Basic</span>
-            <button class="kb-btn" onclick="ins('\\frac{#0}{#1}')">a/b</button>
-            <button class="kb-btn" onclick="ins('\\sqrt{#0}')">√</button>
-            <button class="kb-btn" onclick="ins('^{#0}')">xⁿ</button>
-            <button class="kb-btn" onclick="ins('_{#0}')">xₙ</button>
+            <button class="kb-btn" onclick="ins('\\frac{#@}{#?}')">a/b</button>
+            <button class="kb-btn" onclick="ins('\\sqrt{#@}')">√</button>
+            <button class="kb-btn" onclick="ins('^{#?}')">xⁿ</button>
+            <button class="kb-btn" onclick="ins('_{#?}')">xₙ</button>
             <button class="kb-btn" onclick="ins('\\pi')">π</button>
             <button class="kb-btn" onclick="ins('\\infty')">∞</button>
             <button class="kb-btn" onclick="ins('\\pm')">±</button>
@@ -174,29 +122,26 @@
             <button class="kb-btn" onclick="ins('\\neq')">≠</button>
             <button class="kb-btn" onclick="ins('\\leq')">≤</button>
             <button class="kb-btn" onclick="ins('\\geq')">≥</button>
-
             <span class="kb-cat">Algebra</span>
-            <button class="kb-btn" onclick="ins('\\left|#0\\right|')">|x|</button>
-            <button class="kb-btn" onclick="ins('\\left(#0\\right)')">( )</button>
-            <button class="kb-btn" onclick="ins('\\sqrt[3]{#0}')">∛</button>
-            <button class="kb-btn" onclick="ins('\\sqrt[n]{#0}')">ⁿ√</button>
+            <button class="kb-btn" onclick="ins('\\left|#@\\right|')">|x|</button>
+            <button class="kb-btn" onclick="ins('\\left(#@\\right)')">( )</button>
+            <button class="kb-btn" onclick="ins('\\sqrt[3]{#@}')">∛</button>
+            <button class="kb-btn" onclick="ins('\\sqrt[n]{#@}')">ⁿ√</button>
             <button class="kb-btn" onclick="ins('x^{2}')">x²</button>
             <button class="kb-btn" onclick="ins('\\Delta')">Δ</button>
-
             <span class="kb-cat">Calculus</span>
-            <button class="kb-btn" onclick="ins('\\int_{#0}^{#1}')">∫</button>
-            <button class="kb-btn" onclick="ins('\\sum_{#0}^{#1}')">Σ</button>
-            <button class="kb-btn" onclick="ins('\\lim_{#0 \\to #1}')">lim</button>
+            <button class="kb-btn" onclick="ins('\\int_{#?}^{#?}')">∫</button>
+            <button class="kb-btn" onclick="ins('\\sum_{#?}^{#?}')">Σ</button>
+            <button class="kb-btn" onclick="ins('\\lim_{#? \\to #?}')">lim</button>
             <button class="kb-btn" onclick="ins('\\frac{d}{dx}')">d/dx</button>
             <button class="kb-btn" onclick="ins('\\frac{\\partial}{\\partial x}')">∂/∂x</button>
-
             <span class="kb-cat">Trig</span>
-            <button class="kb-btn" onclick="ins('\\sin\\left(#0\\right)')">sin</button>
-            <button class="kb-btn" onclick="ins('\\cos\\left(#0\\right)')">cos</button>
-            <button class="kb-btn" onclick="ins('\\tan\\left(#0\\right)')">tan</button>
-            <button class="kb-btn" onclick="ins('\\sin^{-1}')">arcsin</button>
-            <button class="kb-btn" onclick="ins('\\cos^{-1}')">arccos</button>
-
+            <button class="kb-btn" onclick="ins('\\sin\\left(#@\\right)')">sin</button>
+            <button class="kb-btn" onclick="ins('\\cos\\left(#@\\right)')">cos</button>
+            <button class="kb-btn" onclick="ins('\\tan\\left(#@\\right)')">tan</button>
+            <button class="kb-btn" onclick="ins('\\arcsin')">arcsin</button>
+            <button class="kb-btn" onclick="ins('\\arccos')">arccos</button>
+            <button class="kb-btn" onclick="ins('\\arctan')">arctan</button>
             <span class="kb-cat">Greek</span>
             <button class="kb-btn" onclick="ins('\\alpha')">α</button>
             <button class="kb-btn" onclick="ins('\\beta')">β</button>
@@ -220,17 +165,32 @@
     <div id="feedback-text"></div>
 </div>
 
-<script src="https://unpkg.com/mathlive/dist/mathlive.min.js"></script>
+<script type="module">
+    import { MathfieldElement } from 'https://unpkg.com/mathlive?module';
+    const kbd = window.mathVirtualKeyboard;
+    kbd.layouts = ['numeric', 'symbols', 'alphabetic'];
+    window._mlReady = true;
+    document.dispatchEvent(new Event('mathlive-ready'));
+</script>
+
 <script>
     const socket = io();
     const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const mf = document.getElementById('mf');
+    const ctx    = canvas.getContext('2d');
+    let mf       = null;
+    let drawing  = false;
 
-    const correctSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
-    const wrongSound = new Audio('https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3');
+    function onMathLiveReady() {
+        mf = document.getElementById('mf');
+        mf.addEventListener('focusin', () => window.mathVirtualKeyboard.show());
+        mf.addEventListener('input', send);
+    }
 
-    let drawing = false;
+    if (window._mlReady) { onMathLiveReady(); } 
+    else {
+        document.addEventListener('mathlive-ready', onMathLiveReady);
+        customElements.whenDefined('math-field').then(onMathLiveReady);
+    }
 
     function join() {
         const room = document.getElementById('room').value.trim();
@@ -251,51 +211,61 @@
     }
 
     function ins(latex) {
-        mf.executeCommand(['insert', latex]);
+        if (!mf) return;
+        mf.executeCommand(['insert', latex, { insertionMode: 'replaceSelection', selectionMode: 'placeholder' }]);
         mf.focus();
         send();
     }
 
-    mf.addEventListener('input', send);
-
-    function getPos(e) {
-        const r = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / r.width;
-        const scaleY = canvas.height / r.height;
-        const src = e.touches ? e.touches[0] : e;
-        return [(src.clientX - r.left) * scaleX, (src.clientY - r.top) * scaleY];
+    function send() {
+        const isType = !document.getElementById('type-zone').classList.contains('hidden');
+        socket.emit('send-math', isType
+            ? { type: 'text', val: mf ? mf.getValue('latex') : '' }
+            : { type: 'draw', val: canvas.toDataURL() }
+        );
     }
 
+    function getPos(e) {
+        const r   = canvas.getBoundingClientRect();
+        const src = e.touches ? e.touches[0] : e;
+        return [(src.clientX - r.left) * (canvas.width / r.width), (src.clientY - r.top) * (canvas.height / r.height)];
+    }
     canvas.addEventListener('mousedown', e => { drawing = true; ctx.beginPath(); ctx.moveTo(...getPos(e)); });
-    canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; ctx.beginPath(); ctx.moveTo(...getPos(e)); }, {passive: false});
-    canvas.addEventListener('mousemove', e => { if (!drawing) return; draw(e); });
-    canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; draw(e); }, {passive: false});
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; ctx.beginPath(); ctx.moveTo(...getPos(e)); }, {passive:false});
+    canvas.addEventListener('mousemove', e => { if (!drawing) return; stroke(e); });
+    canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; stroke(e); }, {passive:false});
     window.addEventListener('mouseup', () => { if (drawing) { drawing = false; send(); } });
     canvas.addEventListener('touchend', () => { drawing = false; send(); });
 
-    function draw(e) {
+    function stroke(e) {
         const [x, y] = getPos(e);
         ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#111';
         ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
     }
-
     function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); send(); }
 
-    function send() {
-        const isType = !document.getElementById('type-zone').classList.contains('hidden');
-        const val = isType
-            ? { type: 'text', val: mf.getValue('latex') }
-            : { type: 'draw', val: canvas.toDataURL() };
-        socket.emit('send-math', val);
+    function renderQuestion(el, text) {
+        el.innerHTML = '';
+        el.textContent = text;
+        if (window.renderMathInElement) {
+            renderMathInElement(el, {
+                delimiters: [
+                    { left: '33434', right: '33434', display: true },
+                    { left: '$',  right: '$',  display: false },
+                    { left: '\\(', right: '\\)', display: false },
+                    { left: '\\[', right: '\\]', display: true },
+                ],
+                throwOnError: false
+            });
+        }
     }
 
     socket.on('new-question', (q) => {
         const qd = document.getElementById('qDisplay');
-        qd.innerText = q.val;
-        qd.classList.remove('waiting');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        mf.setValue('');
-        document.getElementById('feedback-overlay').className = '';
+        qd.className = '';
+        renderQuestion(qd, q.val);
+        clearCanvas();
+        if (mf) mf.setValue('');
     });
 
     socket.on('receive-feedback', (status) => {
@@ -304,16 +274,14 @@
         const text = document.getElementById('feedback-text');
         ov.className = 'show ' + status;
         if (status === 'correct') {
-            icon.textContent = '✅';
-            text.textContent = 'Correct! Well done!';
-            correctSound.play();
+            icon.textContent = '✅'; text.textContent = 'Correct! Well done!';
         } else {
-            icon.textContent = '❌';
-            text.textContent = 'Not quite — try again!';
-            wrongSound.play();
+            icon.textContent = '❌'; text.textContent = 'Not quite — try again!';
         }
         setTimeout(() => { ov.className = ''; }, 3000);
     });
+
+    window.join = join; window.setTool = setTool; window.ins = ins; window.clearCanvas = clearCanvas;
 </script>
 </body>
 </html>
